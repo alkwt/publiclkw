@@ -1,0 +1,1600 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TryingToComeUpWithAName</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#14B8A6','primary-dark': '#0F766E','primary-light': '#2DD4BF',
+                        danger: '#FF4D4D',
+                        success: '#2DD4BF',
+                        neutral: {
+                            100: '#F5F5F5',
+                            200: '#E5E5E5',
+                            700: '#404040',
+                            800: '#262626',
+                            900: '#171717',
+                        }
+                    },
+                    animation: {
+                        'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+                        'tremor': 'shake 0.5s cubic-bezier(.36,.07,.19,.97) both',
+                    },
+                    keyframes: {
+                        shake: {
+                          '10%, 90%': { transform: 'translate3d(-1px, 0, 0)' },
+                          '20%, 80%': { transform: 'translate3d(2px, 0, 0)' },
+                          '30%, 50%, 70%': { transform: 'translate3d(-4px, 0, 0)' },
+                          '40%, 60%': { transform: 'translate3d(4px, 0, 0)' }
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        /* Custom styles */
+        body {
+            transition: background-color 0.3s ease, color 0.3s ease;
+        }
+        .task-item, .timer-card, .survival-card {
+            transition: all 0.2s ease;
+        }
+        .progress-bar {
+            transition: width 0.5s ease-in-out;
+        }
+        input[type="text"], input[type="number"] {
+            font-size: 16px; /* Ensure no zoom on mobile */
+        }
+        .survival-container {
+            aspect-ratio: 1;
+        }
+        .survival-item {
+            transition: opacity 0.3s ease, transform 0.3s ease;
+        }
+        .survival-item.collected {
+            opacity: 1;
+            transform: scale(1);
+        }
+        .survival-item.not-collected {
+            opacity: 0.3;
+            transform: scale(0.9);
+        }
+        .microtask-list {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease;
+        }
+        .microtask-list.active {
+            max-height: 500px;
+        }
+        /* Hide scrollbar but keep functionality */
+        .hide-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .hide-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+        .survival-message {
+            transform: translateY(20px);
+            opacity: 0;
+            transition: transform 0.5s ease, opacity 0.5s ease;
+        }
+        .survival-message.show {
+            transform: translateY(0);
+            opacity: 1;
+        }
+    </style>
+</head>
+<body class="bg-neutral-100 text-neutral-900 dark:bg-neutral-900 dark:text-neutral-100 min-h-screen">
+    <div id="app" class="container mx-auto px-4 py-6 max-w-5xl transition-all">
+        <!-- Header -->
+        <header class="mb-6 flex flex-col sm:flex-row justify-between items-center gap-4">
+            <div class="flex items-center gap-3">
+                <h1 class="text-2xl font-bold text-primary dark:text-primary-light">
+                    TryingToComeUpWithAName
+                </h1>
+                <span class="bg-primary text-white text-xs px-2 py-1 rounded-md">lkwv1.0</span>
+            </div>
+            <div class="flex gap-4 items-center">
+                <div id="totaltokens" class="text-lg font-semibold flex items-center gap-2 bg-neutral-200 dark:bg-neutral-800 px-3 py-1 rounded-lg">
+                    <i class="fas fa-star text-yellow-500"></i>
+                    <span>0</span>
+                    <span class="text-sm text-neutral-600 dark:text-neutral-400">tokens</span>
+                </div>
+
+                <!-- New Day Token Reset Button -->
+
+  <button id="newDayAll" class="bg-neutral-200 hover:bg-neutral-300 dark:bg-neutral-800 dark:hover:bg-neutral-700 p-2 rounded-lg flex items-center gap-2 transition-colors">
+    <i class="fas fa-calendar-day mr-1"></i>
+    <span class="text-sm hidden sm:inline">New Day</span>
+</button>
+
+                <button id="focusToggle" class="bg-neutral-200 hover:bg-neutral-300 dark:bg-neutral-800 dark:hover:bg-neutral-700 p-2 rounded-lg flex items-center gap-2 transition-colors">
+                    <i class="fas fa-eye text-primary"></i>
+                    <span class="text-sm hidden sm:inline">Focus Mode</span>
+                </button>
+                
+                <button id="darkModeToggle" class="bg-neutral-200 hover:bg-neutral-300 dark:bg-neutral-800 dark:hover:bg-neutral-700 p-2 rounded-lg">
+                    <i class="fas fa-moon dark:hidden"></i>
+                    <i class="fas fa-sun hidden dark:inline"></i>
+                </button>
+            </div>
+        </header>
+
+        <!-- Focus Mode Timer (hidden by default, shown in focus mode) -->
+        <div id="focusModeTimer" class="hidden w-full mb-6">
+            <div class="bg-white dark:bg-neutral-800 p-6 rounded-xl shadow-md timer-card">
+                <h2 class="text-xl font-semibold mb-4 text-center">Focus Timer</h2>
+                <div class="text-center">
+                    <div id="timerFocusMode" class="text-6xl font-bold my-8">25:00</div>
+                    <div class="flex justify-center gap-3 mb-4">
+                        <button id="timerModeWorkFocus" class="bg-primary text-white px-4 py-2 rounded-lg">Work</button>
+                        <button id="timerModeShortFocus" class="bg-neutral-200 dark:bg-neutral-700 px-4 py-2 rounded-lg">Short Break</button>
+                        <button id="timerModeLongFocus" class="bg-neutral-200 dark:bg-neutral-700 px-4 py-2 rounded-lg">Long Break</button>
+                    </div>
+                    <div class="flex justify-center gap-3 mb-4">
+                        <button id="startTimerFocus" class="bg-primary hover:bg-primary-dark text-white py-3 px-6 rounded-lg font-medium transition-colors max-w-[200px]">
+                            <i class="fas fa-play mr-1"></i> Start
+                        </button>
+                        <button id="resetTimerFocus" class="bg-neutral-200 hover:bg-neutral-300 dark:bg-neutral-700 dark:hover:bg-neutral-600 py-3 px-6 rounded-lg transition-colors">
+                            <i class="fas fa-redo-alt"></i>
+                        </button>
+                    </div>
+                    <p id="timerStatusFocus" class="text-sm text-neutral-600 dark:text-neutral-400 mt-2">
+                        Complete a session to earn 2 tokens.
+                    </p>
+                </div>
+            </div>
+        </div>
+
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6" id="mainContent">
+            <!-- Main task area -->
+            <div class="lg:col-span-2">
+                <!-- Task input -->
+                <div class="bg-white dark:bg-neutral-800 p-4 rounded-xl shadow-md mb-6">
+                    <h2 class="text-lg font-semibold mb-4">Add New Task</h2>
+                    <form id="taskForm" class="space-y-3">
+                        <div>
+                            <input type="text" id="taskName" placeholder="What do you need to do?" 
+                                   class="w-full p-3 rounded-lg border border-neutral-300 dark:border-neutral-700 bg-neutral-100 dark:bg-neutral-900 text-base" required>
+                        </div>
+                        <div class="flex flex-wrap gap-3">
+                            <div class="flex-1 min-w-[120px]">
+                                <label for="tasktokens" class="block mb-1 text-sm text-neutral-600 dark:text-neutral-400">tokens</label>
+                                <input type="number" id="tasktokens" min="1" value="1" 
+                                       class="w-full p-3 rounded-lg border border-neutral-300 dark:border-neutral-700 bg-neutral-100 dark:bg-neutral-900 text-base">
+                            </div>
+                            <div class="flex-grow min-w-[200px]">
+                                <label class="block mb-1 text-sm text-neutral-600 dark:text-neutral-400">Optional</label>
+                                <div class="flex gap-2">
+                                    <button type="button" id="addMicrotasks" class="flex-1 bg-neutral-200 hover:bg-neutral-300 dark:bg-neutral-700 dark:hover:bg-neutral-600 p-3 rounded-lg text-sm transition-colors">
+                                        <i class="fas fa-list-check"></i> Add Microtasks
+                                    </button>
+                                    <button type="submit" class="flex-1 bg-primary hover:bg-primary-dark text-white p-3 rounded-lg font-medium transition-colors">
+                                        <i class="fas fa-plus"></i> Add Task
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        <div id="microtaskInputArea" class="hidden mt-3">
+                            <div class="p-3 bg-neutral-100 dark:bg-neutral-900 rounded-lg">
+                                <div class="flex justify-between items-center mb-2">
+                                    <label class="text-sm font-medium">Microtasks</label>
+                                    <button type="button" id="addMicrotaskBtn" class="text-primary hover:text-primary-dark transition-colors">
+                                        <i class="fas fa-plus"></i>
+                                    </button>
+                                </div>
+                                <div id="microtaskContainer" class="space-y-2">
+                                    <div class="microtask-input flex items-center gap-2">
+                                        <input type="text" placeholder="Break it down" 
+                                               class="flex-1 p-2 rounded border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-800 text-base">
+                                        <button type="button" class="remove-microtask text-neutral-400 hover:text-red-500 p-1 transition-colors">
+                                            <i class="fas fa-times"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- Task list -->
+                <div class="bg-white dark:bg-neutral-800 p-4 rounded-xl shadow-md mb-6">
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="text-lg font-semibold">Your Tasks</h2>
+                        <div class="flex items-center gap-3">
+                            <div class="text-sm text-neutral-600 dark:text-neutral-400">
+                                <span id="completedTaskCount">0</span>/<span id="totalTaskCount">0</span> completed
+                            </div>
+                            <button id="resetTasks" class="bg-red-100 hover:bg-red-200 text-red-600 dark:bg-red-900/30 dark:hover:bg-red-900/50 dark:text-red-400 px-2 py-1 rounded text-sm transition-colors">
+                                <i class="fas fa-trash-alt mr-1"></i>Reset
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- Progress bar -->
+                    <div class="w-full h-2 bg-neutral-200 dark:bg-neutral-700 rounded-full mb-4 overflow-hidden">
+                        <div id="taskProgressBar" class="h-full bg-primary rounded-full" style="width: 0%;"></div>
+                    </div>
+                    
+                    <div id="taskList" class="space-y-3 max-h-[40vh] overflow-y-auto hide-scrollbar">
+                        <!-- Task items will be added here -->
+                        <div class="text-center text-neutral-500 dark:text-neutral-400 py-6">
+                            <i class="fas fa-clipboard-list text-3xl mb-2"></i>
+                            <p>No tasks yet. Add one above.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Water Tracker -->
+                <div class="bg-white dark:bg-neutral-800 p-4 rounded-xl shadow-md mb-6">
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="text-lg font-semibold">Water Tracker</h2>
+                        <button id="newDayWater" class="bg-blue-100 hover:bg-blue-200 text-blue-600 dark:bg-blue-900/30 dark:hover:bg-blue-900/50 dark:text-blue-400 px-2 py-1 rounded text-sm transition-colors">
+                            <i></i>Reset
+                        </button>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div class="md:col-span-1">
+                            <div class="h-32 bg-neutral-200 dark:bg-neutral-700 rounded-lg relative overflow-hidden">
+                                <div id="waterFill" class="absolute bottom-0 w-full bg-blue-400 dark:bg-blue-500 transition-all duration-500" style="height: 0%;">
+                                </div>
+                                <div class="absolute inset-0 flex items-center justify-center">
+                                    <span id="waterPercentage" class="text-lg font-bold">0%</span>
+                                </div>
+                            </div>
+                            <div class="text-center mt-2">
+                                <div class="text-xl font-bold text-blue-500 dark:text-blue-400">
+                                    <span id="waterTotal">0</span>
+                                    <span class="text-sm">/ 1800 ml</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="md:col-span-2">
+                            <div class="flex flex-wrap gap-2 mb-3">
+                                <button class="add-water flex-1 bg-blue-100 hover:bg-blue-200 dark:bg-blue-900/30 dark:hover:bg-blue-900/50 text-blue-600 dark:text-blue-400 py-2 rounded-lg transition-colors" data-amount="150">
+                                    +150ml
+                                </button>
+                                <button class="add-water flex-1 bg-blue-100 hover:bg-blue-200 dark:bg-blue-900/30 dark:hover:bg-blue-900/50 text-blue-600 dark:text-blue-400 py-2 rounded-lg transition-colors" data-amount="210">
+                                    +210ml
+                                </button>
+                                <button class="add-water flex-1 bg-blue-100 hover:bg-blue-200 dark:bg-blue-900/30 dark:hover:bg-blue-900/50 text-blue-600 dark:text-blue-400 py-2 rounded-lg transition-colors" data-amount="500">
+                                    +500ml
+                                </button>
+                            </div>
+                            <div class="flex gap-2">
+                                <input type="number" id="customWaterAmount" placeholder="Custom amount" min="1" max="1000" class="flex-1 p-2 rounded-lg border border-neutral-300 dark:border-neutral-700 bg-neutral-100 dark:bg-neutral-900 text-base">
+                                <button id="addCustomWater" class="bg-blue-500 hover:bg-blue-600 text-white py-2 px-4 rounded-lg transition-colors">
+                                    Add
+                                </button>
+                            </div>
+                            <p id="waterStatus" class="text-sm text-neutral-600 dark:text-neutral-400 mt-3">
+                               Reach 1800ml to earn 3 tokens.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Gym Logger -->
+                <div class="bg-white dark:bg-neutral-800 p-4 rounded-xl shadow-md">
+                    <h2 class="text-lg font-semibold mb-3">Gym Logger</h2>
+                    <div class="flex items-center p-3 bg-neutral-100 dark:bg-neutral-900 rounded-lg">
+                        <input type="checkbox" id="gymCheckbox" class="w-5 h-5 mr-3">
+                        <label for="gymCheckbox" class="flex-1 font-medium">Gym</label>
+                    </div>
+                    <p id="gymStatus" class="text-sm text-neutral-600 dark:text-neutral-400 mt-3">
+                        Check the box to earn 1 token.
+                    </p>
+                </div>
+            </div>
+
+            <!-- Side panel -->
+            <div class="space-y-6">
+                <!-- Pomodoro Timer (only in normal mode) -->
+                <div id="normalModeTimer" class="bg-white dark:bg-neutral-800 p-4 rounded-xl shadow-md timer-card">
+                    <h2 class="text-lg font-semibold mb-4">Focus Timer</h2>
+                    <div class="text-center">
+                        <div id="timer" class="text-4xl font-bold my-6">25:00</div>
+                        <div class="flex justify-center gap-2 mb-4">
+                            <button id="timerModeWork" class="bg-primary text-white px-3 py-1 rounded-lg text-sm">Work</button>
+                            <button id="timerModeShort" class="bg-neutral-200 dark:bg-neutral-700 px-3 py-1 rounded-lg text-sm">Short Break</button>
+                            <button id="timerModeLong" class="bg-neutral-200 dark:bg-neutral-700 px-3 py-1 rounded-lg text-sm">Long Break</button>
+                        </div>
+                        <div class="flex justify-center gap-3 mb-2">
+                            <button id="startTimer" class="flex-1 bg-primary hover:bg-primary-dark text-white py-2 px-4 rounded-lg font-medium transition-colors max-w-[120px]">
+                                <i class="fas fa-play mr-1"></i> Start
+                            </button>
+                            <button id="resetTimer" class="bg-neutral-200 hover:bg-neutral-300 dark:bg-neutral-700 dark:hover:bg-neutral-600 py-2 px-4 rounded-lg transition-colors">
+                                <i class="fas fa-redo-alt"></i>
+                            </button>
+                        </div>
+                        <p id="timerStatus" class="text-sm text-neutral-600 dark:text-neutral-400 mt-2">
+                            Complete a session to earn 2 tokens.
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Apocalypse Survival Card -->
+                <div class="bg-white dark:bg-neutral-800 p-4 rounded-xl shadow-md survival-card">
+                    <h2 class="text-lg font-semibold mb-4">Survival Items</h2>
+                    <div class="text-center">
+                        <div class="grid grid-cols-2 gap-3 mb-4">
+                            <div class="survival-item not-collected p-2 bg-neutral-100 dark:bg-neutral-900 rounded-lg flex flex-col items-center" data-id="shelter">
+                                <div class="text-3xl mb-1">🏠</div>
+                                <div class="text-sm font-medium">Shelter</div>
+                            </div>
+                            <div class="survival-item not-collected p-2 bg-neutral-100 dark:bg-neutral-900 rounded-lg flex flex-col items-center" data-id="water">
+                                <div class="text-3xl mb-1">💧</div>
+                                <div class="text-sm font-medium">Water</div>
+                            </div>
+                            <div class="survival-item not-collected p-2 bg-neutral-100 dark:bg-neutral-900 rounded-lg flex flex-col items-center" data-id="food">
+                                <div class="text-3xl mb-1">🍗</div>
+                                <div class="text-sm font-medium">Food</div>
+                            </div>
+                            <div class="survival-item not-collected p-2 bg-neutral-100 dark:bg-neutral-900 rounded-lg flex flex-col items-center" data-id="fire">
+                                <div class="text-3xl mb-1">🔥</div>
+                                <div class="text-sm font-medium">Fire</div>
+                            </div>
+                            <div class="survival-item not-collected p-2 bg-neutral-100 dark:bg-neutral-900 rounded-lg flex flex-col items-center" data-id="weapon">
+                                <div class="text-3xl mb-1">🔪</div>
+                                <div class="text-sm font-medium">Weapon</div>
+                            </div>
+                            <div class="survival-item not-collected p-2 bg-neutral-100 dark:bg-neutral-900 rounded-lg flex flex-col items-center" data-id="firstAid">
+                                <div class="text-3xl mb-1">🩹</div>
+                                <div class="text-sm font-medium">First Aid</div>
+                            </div>
+                            <div class="survival-item not-collected p-2 bg-neutral-100 dark:bg-neutral-900 rounded-lg flex flex-col items-center" data-id="supplies">
+                                <div class="text-3xl mb-1">🧰</div>
+                                <div class="text-sm font-medium">Supplies</div>
+                            </div>
+                            <div class="survival-item not-collected p-2 bg-neutral-100 dark:bg-neutral-900 rounded-lg flex flex-col items-center" data-id="radio">
+                                <div class="text-3xl mb-1">📻</div>
+                                <div class="text-sm font-medium">Radio</div>
+                            </div>
+                            <div class="survival-item not-collected p-2 bg-neutral-100 dark:bg-neutral-900 rounded-lg flex flex-col items-center" data-id="car">
+                                <div class="text-3xl mb-1">🚗</div>
+                                <div class="text-sm font-medium">Car</div>
+                            </div>
+                            <div class="survival-item not-collected p-2 bg-neutral-100 dark:bg-neutral-900 rounded-lg flex flex-col items-center" data-id="timeMachine">
+                                <div class="text-3xl mb-1">⏰</div>
+                                <div class="text-sm font-medium">Time Machine</div>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-4">
+                            <div class="flex justify-between items-center mb-1">
+                                <span class="text-sm font-medium">Survival Chance</span>
+                                <span id="survivalChance" class="text-sm font-bold text-primary">0%</span>
+                            </div>
+                            <div class="w-full h-2 bg-neutral-200 dark:bg-neutral-700 rounded-full overflow-hidden">
+                                <div id="survivalProgressBar" class="h-full bg-primary rounded-full" style="width: 0%;"></div>
+                            </div>
+                        </div>
+                        
+                        <div id="survivalMessage" class="survival-message mb-4 py-2 px-3 rounded-lg bg-primary bg-opacity-10 text-primary">
+                            Earn your first token to collect a shelter and gain a 10% survival chance!
+                        </div>
+                        
+                        <button id="runApocalypse" class="bg-danger hover:bg-red-600 text-white py-2 px-6 rounded-lg font-medium transition-colors w-full">
+                            Run Apocalypse
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Idle Reminder Modal -->
+        <div id="idleReminder" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
+            <div class="bg-white dark:bg-neutral-800 p-6 rounded-xl shadow-lg max-w-md w-full mx-4">
+                <div class="text-center mb-4">
+                    <i class="fas fa-bell text-primary text-3xl mb-3"></i>
+                    <h3 class="text-xl font-bold">Hey there!</h3>
+                    <p class="text-neutral-600 dark:text-neutral-400 mt-2">
+                        It looks like you've been away for a bit. Would you like to get back to your tasks?
+                    </p>
+                </div>
+                <div class="flex gap-3">
+                    <button id="idleReminderDismiss" class="flex-1 bg-neutral-200 hover:bg-neutral-300 dark:bg-neutral-700 dark:hover:bg-neutral-600 py-2 rounded-lg transition-colors">
+                        Not yet
+                    </button>
+                    <button id="idleReminderReturn" class="flex-1 bg-primary hover:bg-primary-dark text-white py-2 rounded-lg font-medium transition-colors">
+                        Let's focus!
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Reset Tasks Confirmation Modal -->
+        <div id="resetTasksModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
+            <div class="bg-white dark:bg-neutral-800 p-6 rounded-xl shadow-lg max-w-md w-full mx-4">
+                <div class="text-center mb-4">
+                    <i class="fas fa-exclamation-triangle text-yellow-500 text-3xl mb-3"></i>
+                    <h3 class="text-xl font-bold">Reset All Tasks?</h3>
+                    <p class="text-neutral-600 dark:text-neutral-400 mt-2">
+                        This will permanently delete all your tasks. This action cannot be undone.
+                    </p>
+                </div>
+                <div class="flex gap-3">
+                    <button id="cancelResetTasks" class="flex-1 bg-neutral-200 hover:bg-neutral-300 dark:bg-neutral-700 dark:hover:bg-neutral-600 py-2 rounded-lg transition-colors">
+                        Cancel
+                    </button>
+                    <button id="confirmResetTasks" class="flex-1 bg-red-500 hover:bg-red-600 text-white py-2 rounded-lg font-medium transition-colors">
+                        Reset All Tasks
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Water Goal Reached Modal -->
+        <div id="waterGoalModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
+            <div class="bg-white dark:bg-neutral-800 p-6 rounded-xl shadow-lg max-w-md w-full mx-4">
+                <div class="text-center mb-4">
+                    <i class="fas fa-glass-water text-blue-500 text-3xl mb-3"></i>
+                    <h3 class="text-xl font-bold">Water Goal Reached!</h3>
+                    <p class="text-neutral-600 dark:text-neutral-400 mt-2">
+                        You've reached your daily water intake goal.
+                    </p>
+                    <p class="text-green-500 font-medium mt-2">
+                        You earned 3 tokens.
+                    </p>
+                </div>
+                <div class="flex justify-center">
+                    <button id="waterGoalClaim" class="bg-primary hover:bg-primary-dark text-white py-2 px-6 rounded-lg font-medium transition-colors">
+                        Claim Reward
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+<!-- Add New Day Modal -->
+<div id="resetAllModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
+    <div class="bg-white dark:bg-neutral-800 p-6 rounded-xl shadow-lg max-w-md w-full mx-4">
+      <div class="text-center mb-4">
+        <i class="fas fa-exclamation-circle text-yellow-500 text-3xl mb-3"></i>
+        <h3 class="text-xl font-bold">Start a New Day?</h3>
+        <p class="text-neutral-600 dark:text-neutral-400 mt-2">
+          This will reset all your progress. This cannot be undone.
+        </p>
+      </div>
+      <div class="flex gap-3">
+        <button id="cancelResetAll" class="flex-1 bg-neutral-200 hover:bg-neutral-300 dark:bg-neutral-700 dark:hover:bg-neutral-600 py-2 rounded-lg transition-colors">
+          Cancel
+        </button>
+        <button id="confirmResetAll" class="flex-1 bg-red-500 hover:bg-red-600 text-white py-2 rounded-lg font-medium transition-colors">
+          Reset Everything
+        </button>
+      </div>
+    </div>
+  </div>
+  
+
+        <!-- Apocalypse Result Modal -->
+        <div id="apocalypseResultModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
+            <div class="bg-white dark:bg-neutral-800 p-6 rounded-xl shadow-lg max-w-md w-full mx-4">
+                <div class="text-center mb-4" id="apocalypseResultContent">
+                    <!-- Content will be added dynamically -->
+                </div>
+                <div class="flex justify-center">
+                    <button id="apocalypseResultClose" class="bg-primary hover:bg-primary-dark text-white py-2 px-6 rounded-lg font-medium transition-colors">
+                        Close
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <script>
+            // Dark mode handling
+            if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+                document.documentElement.classList.add('dark');
+            }
+            
+            window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', event => {
+                if (event.matches) {
+                    document.documentElement.classList.add('dark');
+                } else {
+                    document.documentElement.classList.remove('dark');
+                }
+            });
+
+            document.addEventListener('DOMContentLoaded', () => {
+                // Elements
+                const taskForm = document.getElementById('taskForm');
+                const taskList = document.getElementById('taskList');
+                const totaltokensDisplay = document.getElementById('totaltokens').querySelector('span');
+                const timerDisplay = document.getElementById('timer');
+                const timerFocusModeDisplay = document.getElementById('timerFocusMode');
+                const taskProgressBar = document.getElementById('taskProgressBar');
+                const survivalProgressBar = document.getElementById('survivalProgressBar');
+                const survivalChanceDisplay = document.getElementById('survivalChance');
+                const survivalMessage = document.getElementById('survivalMessage');
+                const idleReminder = document.getElementById('idleReminder');
+                const resetTasksModal = document.getElementById('resetTasksModal');
+                const waterGoalModal = document.getElementById('waterGoalModal');
+                const apocalypseResultModal = document.getElementById('apocalypseResultModal');
+                const apocalypseResultContent = document.getElementById('apocalypseResultContent');
+                const completedTaskCountDisplay = document.getElementById('completedTaskCount');
+                const totalTaskCountDisplay = document.getElementById('totalTaskCount');
+                const waterTotalDisplay = document.getElementById('waterTotal');
+                const waterFill = document.getElementById('waterFill');
+                const waterPercentage = document.getElementById('waterPercentage');
+                const waterStatus = document.getElementById('waterStatus');
+                const focusModeTimer = document.getElementById('focusModeTimer');
+                const normalModeTimer = document.getElementById('normalModeTimer');
+                const mainContent = document.getElementById('mainContent');
+                const gymCheckbox = document.getElementById('gymCheckbox');
+                const gymStatus = document.getElementById('gymStatus');
+                const runApocalypseButton = document.getElementById('runApocalypse');
+                
+                // State
+                let tasks = [];
+                let totaltokens = 0;
+                let timerInterval = null;
+                let timerSeconds = 25 * 60; // 25 minutes
+                let timerMode = 'work';
+                let timerRunning = false;
+                let focusMode = false;
+                let lastActivity = Date.now();
+                let idleCheckInterval = null;
+                let pomodoroCount = 0;
+                let waterIntake = 0;
+                let waterGoalReached = false;
+                let gymLogged = false;
+                let collectedItems = new Set();
+                
+                // Survival items data
+                const survivalItems = [
+                    { id: "shelter", name: "Shelter", emoji: "🏠", tokens: 1, chanceIncrease: 10 },
+                    { id: "water", name: "Water", emoji: "💧", tokens: 2, chanceIncrease: 10 },
+                    { id: "food", name: "Food", emoji: "🍗", tokens: 3, chanceIncrease: 10 },
+                    { id: "fire", name: "Fire", emoji: "🔥", tokens: 4, chanceIncrease: 10 },
+                    { id: "weapon", name: "Weapon", emoji: "🔪", tokens: 5, chanceIncrease: 10 },
+                    { id: "firstAid", name: "First Aid", emoji: "🩹", tokens: 6, chanceIncrease: 10 },
+                    { id: "supplies", name: "Daily Supplies", emoji: "🧰", tokens: 7, chanceIncrease: 10 },
+                    { id: "radio", name: "Radio", emoji: "📻", tokens: 8, chanceIncrease: 10 },
+                    { id: "car", name: "Car", emoji: "🚗", tokens: 9, chanceIncrease: 10 },
+                    { id: "timeMachine", name: "Time Machine", emoji: "⏰", tokens: 10, chanceIncrease: 10 }
+                ];
+
+                // Local Storage Functions
+                const storageKeys = {
+                    TASKS: 'apocalypseSurvival_tasks',
+                    tokenS: 'apocalypseSurvival_tokens',
+                    WATER: 'apocalypseSurvival_water',
+                    GYM: 'apocalypseSurvival_gym',
+                    ITEMS: 'apocalypseSurvival_items',
+                    DARK_MODE: 'apocalypseSurvival_darkMode'
+                };
+
+                function saveToStorage() {
+                    try {
+                        // Save tasks
+                        localStorage.setItem(storageKeys.TASKS, JSON.stringify(tasks));
+                        
+                        // Save tokens and timer stats
+                        localStorage.setItem(storageKeys.tokenS, JSON.stringify({
+                            totaltokens,
+                            pomodoroCount
+                        }));
+                        
+                        // Save water
+                        localStorage.setItem(storageKeys.WATER, JSON.stringify({
+                            waterIntake,
+                            waterGoalReached
+                        }));
+                        
+                        // Save gym status
+                        localStorage.setItem(storageKeys.GYM, JSON.stringify({
+                            gymLogged
+                        }));
+                        
+                        // Save collected items
+                        localStorage.setItem(storageKeys.ITEMS, JSON.stringify({
+                            collectedItems: Array.from(collectedItems)
+                        }));
+                        
+                        // Save dark mode
+                        localStorage.setItem(storageKeys.DARK_MODE, 
+                            document.documentElement.classList.contains('dark') ? 'true' : 'false');
+                    } catch (e) {
+                        console.error('Error saving to localStorage:', e);
+                    }
+                }
+
+                function loadFromStorage() {
+                    try {
+                        // Load tasks
+                        const savedTasks = localStorage.getItem(storageKeys.TASKS);
+                        if (savedTasks) {
+                            tasks = JSON.parse(savedTasks);
+                        }
+                        
+                        // Load tokens and timer stats
+                        const savedtokens = localStorage.getItem(storageKeys.tokenS);
+                        if (savedtokens) {
+                            const tokens = JSON.parse(savedtokens);
+                            totaltokens = tokens.totaltokens;
+                            pomodoroCount = tokens.pomodoroCount || 0;
+                        }
+                        
+                        // Load water
+                        const savedWater = localStorage.getItem(storageKeys.WATER);
+                        if (savedWater) {
+                            const water = JSON.parse(savedWater);
+                            waterIntake = water.waterIntake;
+                            waterGoalReached = water.waterGoalReached;
+                        }
+                        
+                        // Load gym status
+                        const savedGym = localStorage.getItem(storageKeys.GYM);
+                        if (savedGym) {
+                            const gym = JSON.parse(savedGym);
+                            gymLogged = gym.gymLogged;
+                            if (gymLogged) {
+                                gymCheckbox.checked = true;
+                                gymStatus.textContent = "You earned 1 token.";
+                            }
+                        }
+                        
+                        // Load collected items
+                        const savedItems = localStorage.getItem(storageKeys.ITEMS);
+                        if (savedItems) {
+                            const items = JSON.parse(savedItems);
+                            collectedItems = new Set(items.collectedItems);
+                        }
+                        
+                        // Load dark mode
+                        const darkMode = localStorage.getItem(storageKeys.DARK_MODE);
+                        if (darkMode === 'true') {
+                            document.documentElement.classList.add('dark');
+                        } else if (darkMode === 'false') {
+                            document.documentElement.classList.remove('dark');
+                        }
+                        
+                        // Update UI with loaded data
+                        renderTasks();
+                        updateSurvivalDisplay();
+                        updateWaterTracker();
+                        totaltokensDisplay.textContent = totaltokens;
+                    } catch (e) {
+                        console.error('Error loading from localStorage:', e);
+                    }
+                }
+                
+                // Add tokens and update display
+                function addtokens(tokens) {
+                    totaltokens += tokens;
+                    totaltokensDisplay.textContent = totaltokens;
+                    
+                    // Check if we can collect new survival items
+                    updateCollectedItems();
+                    
+                    saveToStorage();
+                }
+                
+                // Update collected items based on total tokens
+                function updateCollectedItems() {
+                    let updated = false;
+                    
+                    for (const item of survivalItems) {
+                        if (totaltokens >= item.tokens && !collectedItems.has(item.id)) {
+                            collectedItems.add(item.id);
+                            updated = true;
+                            
+                            // Show the item as collected
+                            const itemElement = document.querySelector(`.survival-item[data-id="${item.id}"]`);
+                            if (itemElement) {
+                                itemElement.classList.remove('not-collected');
+                                itemElement.classList.add('collected');
+                            }
+                            
+                            // Show collection message
+                            showCollectionMessage(item);
+                        }
+                    }
+                    
+                    if (updated) {
+                        updateSurvivalDisplay();
+                    }
+                }
+                
+                // Show message when an item is collected
+                function showCollectionMessage(collectedItem) {
+                    // Find the next item to collect
+                    const nextItem = survivalItems.find(item => !collectedItems.has(item.id));
+                    
+                    if (nextItem) {
+                        const currentChance = calculateSurvivalChance();
+                        survivalMessage.textContent = `You collected "${collectedItem.name}"! Earn the next token to collect "${nextItem.name}" and increase your survival chance by 10% to ${currentChance + 10}%!`;
+                    } else {
+                        survivalMessage.textContent = `Congratulations! You've collected all items and have a 100% chance of survival!`;
+                    }
+                    
+                    // Animate the message
+                    survivalMessage.classList.remove('show');
+                    void survivalMessage.offsetWidth; // Force reflow
+                    survivalMessage.classList.add('show');
+                }
+                
+                // Calculate survival chance based on collected items
+                function calculateSurvivalChance() {
+                    return collectedItems.size * 10; // Each item gives 10% chance
+                }
+                
+                // Update survival display
+                function updateSurvivalDisplay() {
+                    const survivalChance = calculateSurvivalChance();
+                    survivalChanceDisplay.textContent = `${survivalChance}%`;
+                    survivalProgressBar.style.width = `${survivalChance}%`;
+                    
+                    // Update item display
+                    document.querySelectorAll('.survival-item').forEach(item => {
+                        const itemId = item.getAttribute('data-id');
+                        if (collectedItems.has(itemId)) {
+                            item.classList.remove('not-collected');
+                            item.classList.add('collected');
+                        } else {
+                            item.classList.remove('collected');
+                            item.classList.add('not-collected');
+                        }
+                    });
+                    
+                    // Update the message for the next item if it hasn't been set yet
+                    if (!survivalMessage.classList.contains('show')) {
+                        const nextItem = survivalItems.find(item => !collectedItems.has(item.id));
+                        if (nextItem) {
+                            survivalMessage.textContent = `Earn the next token to collect "${nextItem.name}" and increase your survival chance by 10% to ${survivalChance + 10}%!`;
+                        } else {
+                            survivalMessage.textContent = `Congratulations! You've collected all items and have a 100% chance of survival!`;
+                        }
+                        survivalMessage.classList.add('show');
+                    }
+                    
+                    saveToStorage();
+                }
+                
+                // Run apocalypse simulation
+                function runApocalypse() {
+                    const survivalChance = calculateSurvivalChance();
+                    const survived = Math.random() * 100 < survivalChance;
+                    
+                    // Create result content
+                    let resultHTML = '';
+                    
+                    if (survived) {
+                        resultHTML = `
+                            <i class="fas fa-check-circle text-green-500 text-5xl mb-3"></i>
+                            <h3 class="text-xl font-bold text-green-500">You Survived!</h3>
+                            <p class="text-neutral-600 dark:text-neutral-400 mt-2">
+                                With a survival chance of ${survivalChance}%, you made it through the apocalypse!
+                            </p>
+                            <div class="mt-4 p-3 bg-neutral-100 dark:bg-neutral-900 rounded-lg">
+                                <p class="font-medium">Your survival kit:</p>
+                                <div class="flex flex-wrap gap-2 justify-center mt-2">
+                                    ${Array.from(collectedItems).map(itemId => {
+                                        const item = survivalItems.find(i => i.id === itemId);
+                                        return `<span class="inline-block p-1">${item.emoji} ${item.name}</span>`;
+                                    }).join('')}
+                                </div>
+                            </div>
+                        `;
+                    } else {
+                        resultHTML = `
+                            <i class="fas fa-skull text-red-500 text-5xl mb-3"></i>
+                            <h3 class="text-xl font-bold text-red-500">You Didn't Survive</h3>
+                            <p class="text-neutral-600 dark:text-neutral-400 mt-2">
+                                With only a ${survivalChance}% survival chance, luck wasn't on your side.
+                            </p>
+                            <div class="mt-4 p-3 bg-neutral-100 dark:bg-neutral-900 rounded-lg">
+                                <p class="font-medium">Your survival kit was missing:</p>
+                                <div class="flex flex-wrap gap-2 justify-center mt-2">
+                                    ${survivalItems.filter(item => !collectedItems.has(item.id)).map(item => 
+                                        `<span class="inline-block p-1">${item.emoji} ${item.name}</span>`
+                                    ).join('')}
+                                </div>
+                            </div>
+                        `;
+                    }
+                    
+                    // Show the result modal
+                    apocalypseResultContent.innerHTML = resultHTML;
+                    apocalypseResultModal.classList.remove('hidden');
+                    apocalypseResultModal.classList.add('flex');
+                    
+                    // Apply animation to the result modal
+                    const modalContent = apocalypseResultModal.querySelector('div');
+                    modalContent.classList.add('animate-tremor');
+                    setTimeout(() => {
+                        modalContent.classList.remove('animate-tremor');
+                    }, 500);
+                }
+                
+                // Format time for timer display
+                function formatTime(seconds) {
+                    const mins = Math.floor(seconds / 60);
+                    const secs = seconds % 60;
+                    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+                }
+                
+                // Update timer display
+                function updateTimerDisplay() {
+                    timerDisplay.textContent = formatTime(timerSeconds);
+                    timerFocusModeDisplay.textContent = formatTime(timerSeconds);
+                }
+                
+                // Set timer mode
+                function setTimerMode(mode) {
+                    // Normal mode buttons
+                    const workBtn = document.getElementById('timerModeWork');
+                    const shortBtn = document.getElementById('timerModeShort');
+                    const longBtn = document.getElementById('timerModeLong');
+                    
+                    // Focus mode buttons
+                    const workBtnFocus = document.getElementById('timerModeWorkFocus');
+                    const shortBtnFocus = document.getElementById('timerModeShortFocus');
+                    const longBtnFocus = document.getElementById('timerModeLongFocus');
+                    
+                    // Reset all buttons in normal mode
+                    [workBtn, shortBtn, longBtn].forEach(btn => {
+                        btn.classList.remove('bg-primary', 'text-white');
+                        btn.classList.add('bg-neutral-200', 'dark:bg-neutral-700');
+                    });
+                    
+                    // Reset all buttons in focus mode
+                    [workBtnFocus, shortBtnFocus, longBtnFocus].forEach(btn => {
+                        btn.classList.remove('bg-primary', 'text-white');
+                        btn.classList.add('bg-neutral-200', 'dark:bg-neutral-700');
+                    });
+                    
+                    timerMode = mode;
+                    
+                    // Set the active button in both modes
+                    if (mode === 'work') {
+                        workBtn.classList.remove('bg-neutral-200', 'dark:bg-neutral-700');
+                        workBtn.classList.add('bg-primary', 'text-white');
+                        
+                        workBtnFocus.classList.remove('bg-neutral-200', 'dark:bg-neutral-700');
+                        workBtnFocus.classList.add('bg-primary', 'text-white');
+                        
+                        timerSeconds = 25 * 60; // 25 minutes
+                    } else if (mode === 'short') {
+                        shortBtn.classList.remove('bg-neutral-200', 'dark:bg-neutral-700');
+                        shortBtn.classList.add('bg-primary', 'text-white');
+                        
+                        shortBtnFocus.classList.remove('bg-neutral-200', 'dark:bg-neutral-700');
+                        shortBtnFocus.classList.add('bg-primary', 'text-white');
+                        
+                        timerSeconds = 5 * 60; // 5 minutes
+                    } else if (mode === 'long') {
+                        longBtn.classList.remove('bg-neutral-200', 'dark:bg-neutral-700');
+                        longBtn.classList.add('bg-primary', 'text-white');
+                        
+                        longBtnFocus.classList.remove('bg-neutral-200', 'dark:bg-neutral-700');
+                        longBtnFocus.classList.add('bg-primary', 'text-white');
+                        
+                        timerSeconds = 15 * 60; // 15 minutes
+                    }
+                    
+                    updateTimerDisplay();
+                }
+                
+                // Start the timer
+                function startTimer() {
+                    if (timerRunning) return;
+                    
+                    const startBtn = document.getElementById('startTimer');
+                    const startBtnFocus = document.getElementById('startTimerFocus');
+                    
+                    startBtn.innerHTML = '<i class="fas fa-pause mr-1"></i> Pause';
+                    startBtnFocus.innerHTML = '<i class="fas fa-pause mr-1"></i> Pause';
+                    
+                    timerRunning = true;
+                    
+                    updateActivity();
+                    
+                    timerInterval = setInterval(() => {
+                        if (timerSeconds > 0) {
+                            timerSeconds--;
+                            updateTimerDisplay();
+                        } else {
+                            // Timer finished
+                            clearInterval(timerInterval);
+                            timerRunning = false;
+                            startBtn.innerHTML = '<i class="fas fa-play mr-1"></i> Start';
+                            startBtnFocus.innerHTML = '<i class="fas fa-play mr-1"></i> Start';
+                            
+                            // Reward tokens if it was a work session
+                            if (timerMode === 'work') {
+                                const tokensEarned = 2; // 2 tokens per focus session
+                                addtokens(tokensEarned);
+                                
+                                document.getElementById('timerStatus').textContent = `You earned ${tokensEarned} tokens for working.`;
+                                document.getElementById('timerStatusFocus').textContent = `You earned ${tokensEarned} tokens for working.`;
+                                
+                                // Update stats
+                                pomodoroCount++;
+                                
+                                // Play notification sound or show completion message
+                                // Since we can't do alert(), let's flash the timer display
+                                timerDisplay.classList.add('text-green-500');
+                                timerFocusModeDisplay.classList.add('text-green-500');
+                                setTimeout(() => {
+                                    timerDisplay.classList.remove('text-green-500');
+                                    timerFocusModeDisplay.classList.remove('text-green-500');
+                                }, 2000);
+                            }
+                            
+                            // Rotate to the next appropriate timer mode
+                            if (timerMode === 'work') {
+                                // After every 4 work sessions, take a long break
+                                if (pomodoroCount % 4 === 0) {
+                                    setTimerMode('long');
+                                } else {
+                                    setTimerMode('short');
+                                }
+                            } else {
+                                // After any break, go back to work mode
+                                setTimerMode('work');
+                            }
+                            
+                            saveToStorage();
+                        }
+                    }, 1000);
+                }
+                
+                // Pause the timer
+                function pauseTimer() {
+                    if (!timerRunning) return;
+                    
+                    clearInterval(timerInterval);
+                    timerRunning = false;
+                    
+                    document.getElementById('startTimer').innerHTML = '<i class="fas fa-play mr-1"></i> Start';
+                    document.getElementById('startTimerFocus').innerHTML = '<i class="fas fa-play mr-1"></i> Start';
+                }
+                
+                // Reset the timer
+                function resetTimer() {
+                    pauseTimer();
+                    setTimerMode(timerMode); // This will reset the time
+                    
+                    document.getElementById('timerStatus').textContent = 'Complete a session to earn 2 tokens.';
+                    document.getElementById('timerStatusFocus').textContent = 'Complete a session to earn 2 tokens.';
+                }
+                
+                // Create task HTML
+                function createTaskElement(task) {
+                    const taskEl = document.createElement('div');
+                    taskEl.className = `task-item p-3 bg-neutral-100 dark:bg-neutral-900 rounded-lg ${task.completed ? 'border-l-4 border-green-500' : ''}`;
+                    taskEl.dataset.id = task.id;
+                    
+                    let microtaskHtml = '';
+                    if (task.microtasks && task.microtasks.length > 0) {
+                        const completedMicrotasks = task.microtasks.filter(mt => mt.completed).length;
+                        const microtaskProgress = task.microtasks.length > 0 
+                            ? Math.round((completedMicrotasks / task.microtasks.length) * 100) 
+                            : 0;
+                            
+                        microtaskHtml = `
+                            <div class="mt-2">
+                                <div class="flex justify-between items-center text-xs text-neutral-600 dark:text-neutral-400 mb-1">
+                                    <button class="toggle-microtasks hover:text-primary transition-colors">
+                                        <i class="fas fa-chevron-right microtask-toggle-icon mr-1"></i>
+                                        Microtasks: ${completedMicrotasks}/${task.microtasks.length}
+                                    </button>
+                                    <span>${microtaskProgress}%</span>
+                                </div>
+                                <div class="w-full h-1 bg-neutral-200 dark:bg-neutral-700 rounded-full overflow-hidden">
+                                    <div class="h-full bg-primary rounded-full" style="width: ${microtaskProgress}%;"></div>
+                                </div>
+                                
+                                <div class="microtask-list mt-2 pl-4">
+                                    ${task.microtasks.map(mt => `
+                                        <div class="microtask flex items-start gap-2 py-1">
+                                            <input type="checkbox" class="microtask-checkbox mt-1" data-id="${mt.id}" ${mt.completed ? 'checked' : ''}>
+                                            <span class="text-sm ${mt.completed ? 'line-through text-neutral-500 dark:text-neutral-400' : ''}">${mt.text}</span>
+                                        </div>
+                                    `).join('')}
+                                </div>
+                            </div>
+                        `;
+                    }
+                    
+                    taskEl.innerHTML = `
+                        <div class="flex items-center">
+                            <input type="checkbox" class="task-checkbox mr-3 w-5 h-5" ${task.completed ? 'checked' : ''}>
+                            <div class="flex-1">
+                                <div class="flex justify-between items-start">
+                                    <h3 class="font-medium ${task.completed ? 'line-through text-neutral-500 dark:text-neutral-400' : ''}">${task.name}</h3>
+                                    <div class="flex items-center gap-2">
+                                        <span class="bg-primary bg-opacity-10 text-primary px-2 py-0.5 rounded text-sm">
+                                            ${task.tokens} tokens
+                                        </span>
+                                        <button class="delete-task text-neutral-400 hover:text-red-500 transition-colors">
+                                            <i class="fas fa-trash-alt"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                                
+                                ${microtaskHtml}
+                            </div>
+                        </div>
+                    `;
+                    
+                    return taskEl;
+                }
+                
+                // Render all tasks
+                function renderTasks() {
+                    if (tasks.length === 0) {
+                        taskList.innerHTML = `
+                            <div class="text-center text-neutral-500 dark:text-neutral-400 py-6">
+                                <i class="fas fa-clipboard-list text-3xl mb-2"></i>
+                                <p>No tasks yet. Add one above.</p>
+                            </div>
+                        `;
+                        return;
+                    }
+                    
+                    taskList.innerHTML = '';
+                    tasks.forEach(task => {
+                        taskList.appendChild(createTaskElement(task));
+                    });
+                    
+                    // Update progress bar and counters
+                    const completedCount = tasks.filter(t => t.completed).length;
+                    const progressPercentage = tasks.length > 0 ? Math.round((completedCount / tasks.length) * 100) : 0;
+                    
+                    taskProgressBar.style.width = `${progressPercentage}%`;
+                    completedTaskCountDisplay.textContent = completedCount;
+                    totalTaskCountDisplay.textContent = tasks.length;
+                }
+                
+                // Add task to the list
+                function addTask(name, tokens, microtasks = []) {
+                    const newTask = {
+                        id: Date.now().toString(),
+                        name,
+                        tokens: parseInt(tokens) || 1,
+                        completed: false,
+                        microtasks: microtasks.map((text, index) => ({
+                            id: `mt-${Date.now()}-${index}`,
+                            text,
+                            completed: false
+                        }))
+                    };
+                    
+                    tasks.push(newTask);
+                    renderTasks();
+                    saveToStorage();
+                }
+                
+                // Complete a task
+                function completeTask(taskId, completed) {
+                    const task = tasks.find(t => t.id === taskId);
+                    if (!task) return;
+                    
+                    // If marking as completed and wasn't completed before
+                    if (completed && !task.completed) {
+                        addtokens(task.tokens);
+                        task.completed = true;
+                    } 
+                    // If marking as uncompleted and was completed before
+                    else if (!completed && task.completed) {
+                        addtokens(-task.tokens); // Remove tokens
+                        task.completed = false;
+                    }
+                    
+                    renderTasks();
+                    saveToStorage();
+                }
+                
+                // Delete a task
+                function deleteTask(taskId) {
+                    const taskIndex = tasks.findIndex(t => t.id === taskId);
+                    if (taskIndex === -1) return;
+                    
+                    // If task was completed, remove tokens
+                    if (tasks[taskIndex].completed) {
+                        addtokens(-tasks[taskIndex].tokens);
+                    }
+                    
+                    tasks.splice(taskIndex, 1);
+                    renderTasks();
+                    saveToStorage();
+                }
+                
+                // Reset all tasks
+                function resetAllTasks() {
+  const completedTasks = tasks.filter(t => t.completed);
+  if (completedTasks.length > 0) {
+    const tokensToRemove = completedTasks.reduce((total, task) => total + task.tokens, 0);
+    addtokens(-tokensToRemove);
+  }
+
+  tasks = [];
+  renderTasks();
+  completedTaskCountDisplay.textContent = 0;
+  totalTaskCountDisplay.textContent = 0;
+  taskProgressBar.style.width = '0%';
+  saveToStorage();
+}
+
+                
+                // Complete a microtask
+                function completeMicrotask(taskId, microtaskId, completed) {
+                    const task = tasks.find(t => t.id === taskId);
+                    if (!task) return;
+                    
+                    const microtask = task.microtasks.find(mt => mt.id === microtaskId);
+                    if (!microtask) return;
+                    
+                    microtask.completed = completed;
+                    
+                    // Auto-complete task if all microtasks are completed
+                    const allMicrotasksCompleted = task.microtasks.every(mt => mt.completed);
+                    if (allMicrotasksCompleted && !task.completed) {
+                        completeTask(taskId, true);
+                    } else {
+                        renderTasks();
+                        saveToStorage();
+                    }
+                }
+                
+                // Toggle focus mode
+                function toggleFocusMode() {
+                    focusMode = !focusMode;
+                    const focusBtn = document.getElementById('focusToggle');
+                    
+                    if (focusMode) {
+                        // Enable focus mode - show only the timer
+                        focusBtn.innerHTML = '<i class="fas fa-eye-slash text-primary"></i><span class="text-sm hidden sm:inline">Exit Focus</span>';
+                        
+                        // Hide main content, show focus timer
+                        mainContent.classList.add('hidden');
+                        focusModeTimer.classList.remove('hidden');
+                    } else {
+                        // Disable focus mode - show everything
+                        focusBtn.innerHTML = '<i class="fas fa-eye text-primary"></i><span class="text-sm hidden sm:inline">Focus Mode</span>';
+                        
+                        // Show main content, hide focus timer
+                        mainContent.classList.remove('hidden');
+                        focusModeTimer.classList.add('hidden');
+                    }
+                }
+                
+                // Update water tracker display
+                function updateWaterTracker() {
+                    waterTotalDisplay.textContent = waterIntake;
+                    const percentage = Math.min(Math.round((waterIntake / 1800) * 100), 100);
+                    waterFill.style.height = `${percentage}%`;
+                    waterPercentage.textContent = `${percentage}%`;
+                    
+                    // Check if goal reached but not yet claimed
+                    if (waterIntake >= 1800 && !waterGoalReached) {
+                        waterGoalModal.classList.remove('hidden');
+                        waterGoalModal.classList.add('flex');
+                    }
+                    
+                    saveToStorage();
+                }
+                
+                // Add water amount
+                function addWater(amount) {
+                    waterIntake += amount;
+                    updateWaterTracker();
+                    
+                    // Show message about progress
+                    if (waterIntake < 1800) {
+                        const remaining = 1800 - waterIntake;
+                        waterStatus.textContent = `${remaining}ml more to reach your goal.`;
+                    } else {
+                        waterStatus.textContent = `You've reached your daily water goal! Great job!`;
+                    }
+                }
+                
+                // Reset water tracker for new day
+                function resetWaterTracker() {
+                    waterIntake = 0;
+                    waterGoalReached = false;
+                    updateWaterTracker();
+                    waterStatus.textContent = `Reach 1800ml to earn 3 tokens.`;
+                }
+                
+                // Record user activity
+                function updateActivity() {
+                    lastActivity = Date.now();
+                    
+                    if (idleReminder.classList.contains('flex')) {
+                        idleReminder.classList.remove('flex');
+                        idleReminder.classList.add('hidden');
+                    }
+                }
+                
+                // Check for user idle time
+                function startIdleCheck() {
+                    idleCheckInterval = setInterval(() => {
+                        const idleTime = Date.now() - lastActivity;
+                        
+                        // If idle for more than 5 minutes (300000 ms) and not in a break mode
+                        if (idleTime > 300000 && timerMode === 'work' && !idleReminder.classList.contains('flex')) {
+                            // Show idle reminder
+                            idleReminder.classList.remove('hidden');
+                            idleReminder.classList.add('flex');
+                            
+                            // Pause timer if it's running
+                            if (timerRunning) {
+                                pauseTimer();
+                            }
+                        }
+                    }, 60000); // Check every minute
+                }
+                
+                // Event Listeners
+                
+                // Task Form Submission
+                taskForm.addEventListener('submit', (e) => {
+                    e.preventDefault();
+                    updateActivity();
+                    
+                    const taskNameInput = document.getElementById('taskName');
+                    const tasktokensInput = document.getElementById('tasktokens');
+                    const name = taskNameInput.value.trim();
+                    const tokens = parseInt(tasktokensInput.value) || 1;
+                    
+                    if (!name) return;
+                    
+                    // Collect microtasks if any
+                    const microtasks = [];
+                    document.querySelectorAll('.microtask-input input').forEach(input => {
+                        const text = input.value.trim();
+                        if (text) {
+                            microtasks.push(text);
+                        }
+                    });
+                    
+                    addTask(name, tokens, microtasks);
+                    
+                    // Reset form
+                    taskNameInput.value = '';
+                    tasktokensInput.value = '1';
+                    document.getElementById('microtaskInputArea').classList.add('hidden');
+                    document.getElementById('microtaskContainer').innerHTML = `
+                        <div class="microtask-input flex items-center gap-2">
+                            <input type="text" placeholder="Break it down" 
+                                   class="flex-1 p-2 rounded border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-800 text-base">
+                            <button type="button" class="remove-microtask text-neutral-400 hover:text-red-500 p-1 transition-colors">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                    `;
+                });
+                
+                // Task list event delegation (checkboxes, delete buttons, microtask toggles)
+                taskList.addEventListener('click', (e) => {
+                    updateActivity();
+                    
+                    // Task checkbox
+                    if (e.target.classList.contains('task-checkbox')) {
+                        const taskEl = e.target.closest('.task-item');
+                        completeTask(taskEl.dataset.id, e.target.checked);
+                    }
+                    
+                    // Delete task button
+                    if (e.target.classList.contains('delete-task') || e.target.closest('.delete-task')) {
+                        const taskEl = e.target.closest('.task-item');
+                        deleteTask(taskEl.dataset.id);
+                    }
+                    
+                    // Microtask checkbox
+                    if (e.target.classList.contains('microtask-checkbox')) {
+                        const taskEl = e.target.closest('.task-item');
+                        completeMicrotask(taskEl.dataset.id, e.target.dataset.id, e.target.checked);
+                    }
+                    
+                    // Toggle microtasks visibility
+                    if (e.target.classList.contains('toggle-microtasks') || e.target.closest('.toggle-microtasks')) {
+                        const taskEl = e.target.closest('.task-item');
+                        const microtaskList = taskEl.querySelector('.microtask-list');
+                        const toggleIcon = taskEl.querySelector('.microtask-toggle-icon');
+                        
+                        microtaskList.classList.toggle('active');
+                        if (microtaskList.classList.contains('active')) {
+                            toggleIcon.classList.remove('fa-chevron-right');
+                            toggleIcon.classList.add('fa-chevron-down');
+                        } else {
+                            toggleIcon.classList.remove('fa-chevron-down');
+                            toggleIcon.classList.add('fa-chevron-right');
+                        }
+                    }
+                });
+                
+                // Gym checkbox
+                gymCheckbox.addEventListener('change', () => {
+                    updateActivity();
+                    
+                    if (gymCheckbox.checked && !gymLogged) {
+                        // Add 1 token for going to the gym
+                        addtokens(1);
+                        gymLogged = true;
+                        gymStatus.textContent = "You earned 1 token for hitting the gym.";
+                        saveToStorage();
+                    } else if (!gymCheckbox.checked && gymLogged) {
+                        // Remove token if unchecking
+                        addtokens(-1);
+                        gymLogged = false;
+                        gymStatus.textContent = "Check the box to earn 1 token";
+                        saveToStorage();
+                    }
+                });
+                
+                // Run Apocalypse button
+                runApocalypseButton.addEventListener('click', () => {
+                    updateActivity();
+                    runApocalypse();
+                });
+                
+                // Close Apocalypse Result Modal
+                document.getElementById('apocalypseResultClose').addEventListener('click', () => {
+                    updateActivity();
+                    apocalypseResultModal.classList.remove('flex');
+                    apocalypseResultModal.classList.add('hidden');
+                });
+                
+                // Reset tasks button
+                document.getElementById('resetTasks').addEventListener('click', () => {
+                    updateActivity();
+                    if (tasks.length > 0) {
+                        resetTasksModal.classList.remove('hidden');
+                        resetTasksModal.classList.add('flex');
+                    }
+                });
+                
+                // Cancel reset tasks
+                document.getElementById('cancelResetTasks').addEventListener('click', () => {
+                    updateActivity();
+                    resetTasksModal.classList.remove('flex');
+                    resetTasksModal.classList.add('hidden');
+                });
+                
+                // Confirm reset tasks
+                document.getElementById('confirmResetTasks').addEventListener('click', () => {
+                    updateActivity();
+                    resetTasksModal.classList.remove('flex');
+                    resetTasksModal.classList.add('hidden');
+                    resetAllTasks();
+                });
+                
+                // Add microtasks button
+                document.getElementById('addMicrotasks').addEventListener('click', () => {
+                    updateActivity();
+                    document.getElementById('microtaskInputArea').classList.toggle('hidden');
+                });
+                
+                // Add microtask button
+                document.getElementById('addMicrotaskBtn').addEventListener('click', () => {
+                    updateActivity();
+                    const container = document.getElementById('microtaskContainer');
+                    const newInput = document.createElement('div');
+                    newInput.className = 'microtask-input flex items-center gap-2';
+                    newInput.innerHTML = `
+                        <input type="text" placeholder="Break it down" 
+                               class="flex-1 p-2 rounded border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-800 text-base">
+                        <button type="button" class="remove-microtask text-neutral-400 hover:text-red-500 p-1 transition-colors">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    `;
+                    container.appendChild(newInput);
+                });
+                
+                // Remove microtask input
+                document.getElementById('microtaskContainer').addEventListener('click', (e) => {
+                    updateActivity();
+                    if (e.target.classList.contains('remove-microtask') || e.target.closest('.remove-microtask')) {
+                        const inputEl = e.target.closest('.microtask-input');
+                        if (document.querySelectorAll('.microtask-input').length > 1) {
+                            inputEl.remove();
+                        } else {
+                            inputEl.querySelector('input').value = '';
+                        }
+                    }
+                });
+                
+                // Timer mode buttons - both normal and focus mode
+                document.getElementById('timerModeWork').addEventListener('click', () => {
+                    updateActivity();
+                    setTimerMode('work');
+                });
+                
+                document.getElementById('timerModeWorkFocus').addEventListener('click', () => {
+                    updateActivity();
+                    setTimerMode('work');
+                });
+                
+                document.getElementById('timerModeShort').addEventListener('click', () => {
+                    updateActivity();
+                    setTimerMode('short');
+                });
+                
+                document.getElementById('timerModeShortFocus').addEventListener('click', () => {
+                    updateActivity();
+                    setTimerMode('short');
+                });
+                
+                document.getElementById('timerModeLong').addEventListener('click', () => {
+                    updateActivity();
+                    setTimerMode('long');
+                });
+                
+                document.getElementById('timerModeLongFocus').addEventListener('click', () => {
+                    updateActivity();
+                    setTimerMode('long');
+                });
+                
+                // Start/Pause timer buttons - both normal and focus mode
+                document.getElementById('startTimer').addEventListener('click', () => {
+                    updateActivity();
+                    if (timerRunning) {
+                        pauseTimer();
+                    } else {
+                        startTimer();
+                    }
+                });
+                
+                document.getElementById('startTimerFocus').addEventListener('click', () => {
+                    updateActivity();
+                    if (timerRunning) {
+                        pauseTimer();
+                    } else {
+                        startTimer();
+                    }
+                });
+                
+                // Reset timer buttons - both normal and focus mode
+                document.getElementById('resetTimer').addEventListener('click', () => {
+                    updateActivity();
+                    resetTimer();
+                });
+                
+                document.getElementById('resetTimerFocus').addEventListener('click', () => {
+                    updateActivity();
+                    resetTimer();
+                });
+                
+                // Water tracker quick add buttons
+                document.querySelectorAll('.add-water').forEach(button => {
+                    button.addEventListener('click', () => {
+                        updateActivity();
+                        const amount = parseInt(button.getAttribute('data-amount')) || 0;
+                        if (amount > 0) {
+                            addWater(amount);
+                        }
+                    });
+                });
+                
+                // Custom water amount
+                document.getElementById('addCustomWater').addEventListener('click', () => {
+                    updateActivity();
+                    const inputField = document.getElementById('customWaterAmount');
+                    const amount = parseInt(inputField.value) || 0;
+                    if (amount > 0) {
+                        addWater(amount);
+                        inputField.value = '';
+                    }
+                });
+                
+                // New Day button for water tracker
+                document.getElementById('newDayWater').addEventListener('click', () => {
+                    updateActivity();
+                    resetWaterTracker();
+                });
+                
+                // Reset gym log for new day
+                document.getElementById('newDayWater').addEventListener('click', () => {
+                    gymLogged = false;
+                    gymCheckbox.checked = false;
+                    gymStatus.textContent = "Check the box if you've gone to the gym today to earn 1 token.";
+                    saveToStorage();
+                });
+                
+                // Water goal claim button
+                document.getElementById('waterGoalClaim').addEventListener('click', () => {
+                    updateActivity();
+                    if (waterIntake >= 1800 && !waterGoalReached) {
+                        addtokens(3);
+                        waterGoalReached = true;
+                        waterStatus.textContent = `3 tokens added.`;
+                        
+                        waterGoalModal.classList.remove('flex');
+                        waterGoalModal.classList.add('hidden');
+                        
+                        saveToStorage();
+                    }
+                });
+                
+                // Focus mode toggle
+                document.getElementById('focusToggle').addEventListener('click', () => {
+                    updateActivity();
+                    toggleFocusMode();
+                });
+                
+                // Dark mode toggle
+                document.getElementById('darkModeToggle').addEventListener('click', () => {
+                    updateActivity();
+                    document.documentElement.classList.toggle('dark');
+                    saveToStorage();
+                });
+                
+                // Idle reminder buttons
+                document.getElementById('idleReminderDismiss').addEventListener('click', () => {
+                    idleReminder.classList.remove('flex');
+                    idleReminder.classList.add('hidden');
+                    updateActivity();
+                });
+                
+                document.getElementById('idleReminderReturn').addEventListener('click', () => {
+                    idleReminder.classList.remove('flex');
+                    idleReminder.classList.add('hidden');
+                    updateActivity();
+                    
+                    // Optional: Start the timer automatically when returning to focus
+                    if (!timerRunning && timerMode === 'work') {
+                        startTimer();
+                    }
+                });
+                
+                // User activity events
+                ['click', 'keydown', 'mousemove', 'touchstart'].forEach(eventType => {
+                    document.addEventListener(eventType, updateActivity);
+                });
+                
+                // Add event listener for input field to add water when pressing Enter
+                document.getElementById('customWaterAmount').addEventListener('keypress', (e) => {
+                    if (e.key === 'Enter') {
+                        e.preventDefault();
+                        document.getElementById('addCustomWater').click();
+                    }
+                });
+                
+                const newDayAllButton = document.getElementById('newDayAll');
+const resetAllModal = document.getElementById('resetAllModal');
+
+newDayAllButton.addEventListener('click', () => {
+  resetAllModal.classList.remove('hidden');
+  resetAllModal.classList.add('flex');
+});
+
+document.getElementById('cancelResetAll').addEventListener('click', () => {
+  resetAllModal.classList.add('hidden');
+  resetAllModal.classList.remove('flex');
+});
+
+document.getElementById('confirmResetAll').addEventListener('click', () => {
+  localStorage.clear();
+  location.reload();
+});
+
+
+                // Initialize
+                loadFromStorage(); // Load saved data
+                setTimerMode('work');
+                updateTimerDisplay();
+                updateSurvivalDisplay();
+                renderTasks();
+                updateWaterTracker();
+                startIdleCheck();
+    
+            });
+        </script>
+    </div>
+</body>
+</html>
